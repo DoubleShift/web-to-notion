@@ -187,7 +187,7 @@ private fun SettingsCard(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.subtitleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
             content()

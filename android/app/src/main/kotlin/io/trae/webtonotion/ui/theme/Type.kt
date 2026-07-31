@@ -41,14 +41,14 @@ val HarmonyTypography = Typography(
         lineHeight = 28.sp
     ),
 
-    // Subtitle (Medium 字重, 副标题/卡片标题)
-    subtitleLarge = TextStyle(
+    // Subtitle (Medium 字重, 副标题/卡片标题) — mapped to headlineSmall/titleSmall
+    headlineSmall = TextStyle(
         fontFamily = DefaultFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 18.sp,        // Subtitle_L
         lineHeight = 24.sp
     ),
-    subtitleMedium = TextStyle(
+    titleSmall = TextStyle(
         fontFamily = DefaultFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 16.sp,        // Subtitle_M

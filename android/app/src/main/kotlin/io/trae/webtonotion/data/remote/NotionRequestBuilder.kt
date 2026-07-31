@@ -156,15 +156,12 @@ object NotionRequestBuilder {
 
     // 从内容文本构建便签的 children blocks（按段落分割）
     fun buildNoteChildren(content: String): JsonArray {
+        val lines = content.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
         return buildJsonArray {
-            content.split("\n").forEach { line ->
-                val trimmed = line.trim()
-                if (trimmed.isNotEmpty()) {
-                    add(buildParagraph(trimmed))
-                }
-            }
-            if (size == 0) {
+            if (lines.isEmpty()) {
                 add(buildParagraph(""))
+            } else {
+                lines.forEach { add(buildParagraph(it)) }
             }
         }
     }
