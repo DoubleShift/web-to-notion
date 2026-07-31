@@ -29,7 +29,8 @@ param(
     [string] $ApkPath,
     [string] $AdbPath = "D:\Dev\Lib\adb\adb.exe",
     [switch] $KeepArtifacts,
-    [switch] $AdbInstall
+    [switch] $AdbInstall,
+    [switch] $SkipInstall
 )
 
 $PackageName = "io.trae.webtonotion"
@@ -144,7 +145,10 @@ Write-Ok "日志将在测试结束后保存到: $logFile"
 # 安装 APK
 Write-Step "[4/7] 安装 APK..."
 
-if ($AdbInstall) {
+if ($SkipInstall) {
+    Write-Ok "跳过安装，使用当前已安装版本"
+}
+elseif ($AdbInstall) {
     # 强制 ADB 直接安装（旧行为）
     Invoke-Adb "uninstall $PackageName" | Out-Null
     $installCode = Invoke-Adb "install `"$ApkPath`""
