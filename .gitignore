@@ -58,6 +58,9 @@ dist/
 .dev.vars
 scripts/secrets.ps1
 
+# Generated AI skill packs (can be re-installed via android-skills-pack)
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
