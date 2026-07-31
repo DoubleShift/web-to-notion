@@ -385,7 +385,10 @@ private fun MemoDrawerSheet(
             icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
             label = { Text("设置", fontSize = 15.sp, color = Color.Black) },
             selected = false,
-            onClick = { scope.launch { drawerState.close(); onSettings() } },
+            onClick = {
+                android.util.Log.d("MemoDrawer", "Settings clicked")
+                scope.launch { drawerState.close(); onSettings() }
+            },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(12.dp)
         )
