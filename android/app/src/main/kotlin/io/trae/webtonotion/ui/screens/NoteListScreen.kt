@@ -259,6 +259,7 @@ private fun MemoDrawerSheet(
     onSettings: () -> Unit,
     onTrash: () -> Unit
 ) {
+    val context = LocalContext.current
     var groupsExpanded by remember { mutableStateOf(false) }
 
     Column(
