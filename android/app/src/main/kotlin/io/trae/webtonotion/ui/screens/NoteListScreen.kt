@@ -37,6 +37,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,6 +84,7 @@ import io.trae.webtonotion.ui.theme.BackgroundGrey
 import io.trae.webtonotion.ui.theme.MemoYellow
 import io.trae.webtonotion.ui.theme.TextSecondary
 import io.trae.webtonotion.ui.theme.TextTertiary
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -124,15 +126,14 @@ fun NoteListScreen(
         drawerState = drawerState,
         drawerContent = {
             MemoDrawerSheet(
-                noteCount = notes.size,
-                onMyNotes = { scope.launch { drawerState.close() } },
-                onAllNotes = { scope.launch { drawerState.close() } },
-                onSettings = {
-                    scope.launch { drawerState.close() }
-                    onNavigateToSettings()
-                },
-                onTrash = { scope.launch { drawerState.close() } }
-            )
+        noteCount = notes.size,
+        scope = scope,
+        drawerState = drawerState,
+        onMyNotes = { },
+        onAllNotes = { },
+        onSettings = onNavigateToSettings,
+        onTrash = { }
+    )
         },
         gesturesEnabled = drawerState.isOpen
     ) {
@@ -244,9 +245,12 @@ fun NoteListScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoDrawerSheet(
     noteCount: Int,
+    scope: CoroutineScope,
+    drawerState: DrawerState,
     onMyNotes: () -> Unit,
     onAllNotes: () -> Unit,
     onSettings: () -> Unit,
@@ -305,7 +309,7 @@ private fun MemoDrawerSheet(
             icon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
             label = { DrawerItemLabel("我的便签", noteCount) },
             selected = true,
-            onClick = onMyNotes,
+            onClick = { scope.launch { drawerState.close(); onMyNotes() } },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(12.dp)
         )
@@ -313,7 +317,7 @@ private fun MemoDrawerSheet(
             icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
             label = { DrawerItemLabel("全部便签", noteCount) },
             selected = false,
-            onClick = onAllNotes,
+            onClick = { scope.launch { drawerState.close(); onAllNotes() } },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(12.dp)
         )
@@ -373,7 +377,7 @@ private fun MemoDrawerSheet(
             icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
             label = { Text("回收站", fontSize = 15.sp, color = Color.Black) },
             selected = false,
-            onClick = onTrash,
+            onClick = { scope.launch { drawerState.close(); onTrash() } },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(12.dp)
         )
@@ -381,7 +385,7 @@ private fun MemoDrawerSheet(
             icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
             label = { Text("设置", fontSize = 15.sp, color = Color.Black) },
             selected = false,
-            onClick = onSettings,
+            onClick = { scope.launch { drawerState.close(); onSettings() } },
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             shape = RoundedCornerShape(12.dp)
         )
