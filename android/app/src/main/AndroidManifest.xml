@@ -36,6 +36,14 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".receiver.ConfigReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="io.trae.webtonotion.SET_CONFIG" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>
