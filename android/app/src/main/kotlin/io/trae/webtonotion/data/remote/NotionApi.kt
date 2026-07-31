@@ -1,6 +1,8 @@
 package io.trae.webtonotion.data.remote
 
+import io.trae.webtonotion.data.remote.dto.CreateDatabaseResponse
 import io.trae.webtonotion.data.remote.dto.CreatePageResponse
+import io.trae.webtonotion.data.remote.dto.DatabaseResponse
 import io.trae.webtonotion.data.remote.dto.FileUploadCreateResponse
 import io.trae.webtonotion.data.remote.dto.FileUploadSendResponse
 import io.trae.webtonotion.data.remote.dto.GetBlocksResponse
@@ -19,6 +21,20 @@ import retrofit2.http.Part
 import retrofit2.http.Path
 
 interface NotionApi {
+
+    @Headers("Notion-Version: 2022-06-28")
+    @GET("v1/databases/{database_id}")
+    suspend fun getDatabase(
+        @Header("Authorization") auth: String,
+        @Path("database_id") databaseId: String
+    ): DatabaseResponse
+
+    @Headers("Notion-Version: 2022-06-28")
+    @POST("v1/databases")
+    suspend fun createDatabase(
+        @Header("Authorization") auth: String,
+        @Body body: JsonObject
+    ): CreateDatabaseResponse
 
     @Headers("Notion-Version: 2022-06-28")
     @POST("v1/pages")

@@ -29,7 +29,7 @@ class NoteRepository(
             title = title,
             content = content,
             tags = tags.joinToString(","),
-            status = NoteStatus.DRAFT,
+            status = NoteStatus.PENDING,
             isPinned = isPinned
         )
         return dao.insert(note)
@@ -134,12 +134,17 @@ class NoteRepository(
         if (databaseId.isEmpty()) return TestResult(false, "Database ID 未填写")
 
         return try {
-            val request = NotionRequestBuilder.buildQueryRequest(pageSize = 1)
-            ApiClient.notionApi.queryDatabase(
+            val db = ApiClient.notionApi.getDatabase(
                 ApiClient.bearer(token),
-                databaseId,
-                request
+                databaseId
             )
+            val issues = NotionRequestBuilder.validateDatabaseSchema(db.properties)
+            if (issues.isNotEmpty()) {
+                return TestResult(
+                    false,
+                    "数据库 schema 不匹配：${issues.joinToString("；")}。请使用设置中的"创建数据库"功能。"
+                )
+            }
             TestResult(true, null)
         } catch (e: retrofit2.HttpException) {
             val body = e.response()?.errorBody()?.string()
@@ -151,6 +156,35 @@ class NoteRepository(
         } catch (e: Exception) {
             TestResult(false, "${e.javaClass.simpleName}: ${e.message}")
         }
+    }
+
+    // 在指定页面下创建 Web to Notion 数据库，返回新数据库 ID
+    suspend fun createNotionDatabase(parentPageId: String): CreateDbResult {
+        val token = settings.getNotionTokenSync()
+        if (token.isEmpty()) return CreateDbResult(false, null, "Notion Token 未填写")
+
+        return try {
+            val request = NotionRequestBuilder.buildCreateDatabase(parentPageId)
+            val response = ApiClient.notionApi.createDatabase(
+                ApiClient.bearer(token),
+                request
+            )
+            settings.setDatabaseId(response.id)
+            CreateDbResult(true, response.id, null)
+        } catch (e: retrofit2.HttpException) {
+            val body = e.response()?.errorBody()?.string()
+            CreateDbResult(false, null, "HTTP ${e.code()}: ${body ?: e.message()}")
+        } catch (e: Exception) {
+            CreateDbResult(false, null, "${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+
+    data class CreateDbResult(val success: Boolean, val databaseId: String?, val error: String?)
+
+    // 重新同步失败的笔记
+    suspend fun retrySync(noteId: Long) {
+        dao.updateStatus(noteId, NoteStatus.PENDING, null)
+        // Worker 需要重新入队，由调用方处理
     }
 
     data class TestResult(val success: Boolean, val error: String?)

@@ -125,6 +125,61 @@ object NotionRequestBuilder {
         put("children", children)
     }
 
+    // 创建数据库的请求体
+    fun buildCreateDatabase(parentPageId: String): JsonObject = buildJsonObject {
+        putJsonObject("parent") { put("page_id", parentPageId) }
+        putJsonArray("title") {
+            add(buildJsonObject {
+                put("type", "text")
+                putJsonObject("text") { put("content", "Web to Notion") }
+            })
+        }
+        putJsonObject("properties") {
+            putJsonObject("Title") { put("title", buildJsonObject {}) }
+            putJsonObject("Type") {
+                putJsonObject("select") {
+                    putJsonArray("options") {
+                        add(buildJsonObject {
+                            put("name", "note")
+                            put("color", "yellow")
+                        })
+                        add(buildJsonObject {
+                            put("name", "webpage")
+                            put("color", "blue")
+                        })
+                    }
+                }
+            }
+            putJsonObject("URL") { put("url", buildJsonObject {}) }
+            putJsonObject("Tags") { put("multi_select", buildJsonObject {}) }
+            putJsonObject("Created") { put("date", buildJsonObject {}) }
+        }
+    }
+
+    // 验证数据库属性是否包含必需的字段
+    fun validateDatabaseSchema(properties: JsonObject): List<String> {
+        val required = mapOf(
+            "Title" to "title",
+            "Type" to "select",
+            "URL" to "url",
+            "Tags" to "multi_select",
+            "Created" to "date"
+        )
+        val missing = mutableListOf<String>()
+        required.forEach { (name, expectedType) ->
+            val prop = properties[name]
+            if (prop == null) {
+                missing.add("缺少属性: $name")
+            } else {
+                val actualType = (prop as? JsonObject)?.get("type")?.toString()?.trim('"')
+                if (actualType != expectedType) {
+                    missing.add("属性 $name 类型错误: 需要 $expectedType，实际 $actualType")
+                }
+            }
+        }
+        return missing
+    }
+
     // 构建查询数据库的请求体
     fun buildQueryRequest(
         pageSize: Int = 100,

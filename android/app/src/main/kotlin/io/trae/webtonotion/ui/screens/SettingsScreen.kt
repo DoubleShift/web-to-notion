@@ -13,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -24,9 +25,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -71,6 +73,13 @@ class SettingsViewModel(
             onResult(result.success, result.error)
         }
     }
+
+    fun createDatabase(parentPageId: String, onResult: (Boolean, String?, String?) -> Unit) {
+        viewModelScope.launch {
+            val result = repository.createNotionDatabase(parentPageId)
+            onResult(result.success, result.databaseId, result.error)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,6 +98,8 @@ fun SettingsScreen() {
     val databaseId by viewModel.databaseId.collectAsStateWithLifecycle()
     val groqKey by viewModel.groqKey.collectAsStateWithLifecycle()
     val groqEnabled by viewModel.groqEnabled.collectAsStateWithLifecycle()
+
+    var parentPageId by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("设置") }) },
@@ -127,7 +138,7 @@ fun SettingsScreen() {
                         viewModel.testConnection { success, error ->
                             scope.launch {
                                 snackbarHostState.showSnackbar(
-                                    if (success) "连接成功"
+                                    if (success) "连接成功，数据库 schema 正确"
                                     else "连接失败：$error"
                                 )
                             }
@@ -135,6 +146,44 @@ fun SettingsScreen() {
                     }
                 ) {
                     Text("测试连接")
+                }
+
+                HorizontalDivider()
+
+                Text(
+                    text = "数据库不存在或 schema 不匹配？在下面填入一个 Notion 页面 ID，让 App 自动创建正确结构的数据库。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = parentPageId,
+                    onValueChange = { parentPageId = it },
+                    label = { Text("父页面 ID (page_id)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    singleLine = true
+                )
+                Button(
+                    onClick = {
+                        val pageId = parentPageId.trim()
+                        if (pageId.isBlank()) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("请先填写父页面 ID")
+                            }
+                            return@Button
+                        }
+                        viewModel.createDatabase(pageId) { success, newDbId, error ->
+                            scope.launch {
+                                if (success && newDbId != null) {
+                                    snackbarHostState.showSnackbar("数据库已创建：$newDbId")
+                                } else {
+                                    snackbarHostState.showSnackbar("创建失败：$error")
+                                }
+                            }
+                        }
+                    }
+                ) {
+                    Text("创建数据库")
                 }
             }
 

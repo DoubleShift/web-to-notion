@@ -47,3 +47,15 @@ data class NotionError(
     val code: String? = null,
     val message: String? = null
 )
+
+@Serializable
+data class DatabaseResponse(
+    val id: String,
+    val properties: JsonObject
+)
+
+@Serializable
+data class CreateDatabaseResponse(
+    val id: String,
+    val url: String
+)

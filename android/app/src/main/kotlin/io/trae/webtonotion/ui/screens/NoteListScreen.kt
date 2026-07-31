@@ -73,11 +73,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.trae.webtonotion.data.local.NoteEntity
+import io.trae.webtonotion.data.local.NoteStatus
 import io.trae.webtonotion.data.repository.NoteRepository
 import io.trae.webtonotion.ui.components.EmptyState
 import io.trae.webtonotion.ui.theme.MemoYellow
 import io.trae.webtonotion.ui.theme.TextSecondary
 import io.trae.webtonotion.ui.theme.TextTertiary
+import io.trae.webtonotion.work.SaveNoteWorker
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -92,6 +94,13 @@ class NoteListViewModel(private val repository: NoteRepository) : ViewModel() {
 
     fun deleteNote(id: Long) {
         viewModelScope.launch { repository.deleteNote(id) }
+    }
+
+    fun retrySync(context: Context, id: Long) {
+        viewModelScope.launch {
+            repository.retrySync(id)
+            SaveNoteWorker.enqueue(context, id)
+        }
     }
 }
 
@@ -194,7 +203,8 @@ fun NoteListScreen(
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://notion.so/$pageId"))
                                         context.startActivity(intent)
                                     }
-                                }
+                                },
+                                onRetry = { viewModel.retrySync(context, note.id) }
                             )
                         }
                     }
@@ -213,7 +223,8 @@ fun NoteListScreen(
                                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://notion.so/$pageId"))
                                         context.startActivity(intent)
                                     }
-                                }
+                                },
+                                onRetry = { viewModel.retrySync(context, note.id) }
                             )
                         }
                     }
@@ -445,9 +456,23 @@ private fun MemoCard(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onOpenInNotion: () -> Unit
+    onOpenInNotion: () -> Unit,
+    onRetry: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val statusColor = when (note.status) {
+        NoteStatus.SUCCESS -> Color(0xFF4CAF50)
+        NoteStatus.FAILED -> Color(0xFFE53935)
+        NoteStatus.PROCESSING -> Color(0xFFFB8C00)
+        else -> TextTertiary
+    }
+    val statusText = when (note.status) {
+        NoteStatus.SUCCESS -> "已同步"
+        NoteStatus.FAILED -> "同步失败"
+        NoteStatus.PROCESSING -> "同步中"
+        NoteStatus.PENDING -> "待同步"
+        else -> "草稿"
+    }
 
     Box {
         Card(
@@ -476,11 +501,32 @@ private fun MemoCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    text = dateFormat.format(Date(note.updatedAt)),
-                    color = TextSecondary,
-                    fontSize = 13.sp
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = dateFormat.format(Date(note.updatedAt)),
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = statusText,
+                        color = statusColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                if (note.status == NoteStatus.FAILED && !note.error.isNullOrBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = note.error,
+                        color = Color(0xFFE53935),
+                        fontSize = 12.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
 
@@ -493,6 +539,13 @@ private fun MemoCard(
                 onClick = { showMenu = false; onEdit() },
                 leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) }
             )
+            if (note.status == NoteStatus.FAILED) {
+                DropdownMenuItem(
+                    text = { Text("重试同步") },
+                    onClick = { showMenu = false; onRetry() },
+                    leadingIcon = { Icon(Icons.Outlined.OpenInNew, contentDescription = null) }
+                )
+            }
             if (note.notionPageId != null) {
                 DropdownMenuItem(
                     text = { Text("在 Notion 打开") },
