@@ -318,36 +318,50 @@ private fun MemoDrawerSheet(
         )
 
         // 分组（可展开）
-        NavigationDrawerItem(
-            icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
-            label = {
+        Surface(
+            onClick = { groupsExpanded = !groupsExpanded },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = Color.Transparent
+        ) {
+            Column {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("分组", fontSize = 15.sp, color = Color.Black)
+                    Icon(
+                        imageVector = Icons.Outlined.Label,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "分组",
+                        fontSize = 15.sp,
+                        color = Color.Black,
+                        modifier = Modifier.weight(1f)
+                    )
                     Icon(
                         imageVector = if (groupsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
                         contentDescription = null,
                         tint = TextSecondary
                     )
                 }
-            },
-            selected = false,
-            onClick = { groupsExpanded = !groupsExpanded },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(12.dp)
-        )
-        if (groupsExpanded) {
-            Text(
-                text = "暂无自定义分组",
-                color = TextTertiary,
-                fontSize = 14.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 56.dp, top = 4.dp, bottom = 12.dp)
-            )
+                if (groupsExpanded) {
+                    Text(
+                        text = "暂无自定义分组",
+                        color = TextTertiary,
+                        fontSize = 14.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 44.dp, bottom = 12.dp)
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.weight(1f))
