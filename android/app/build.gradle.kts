@@ -97,8 +97,8 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
-    // WorkManager
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    // WorkManager (2.10.0 requires compileSdk 35; 2.9.1 is the latest compatible with AGP 8.2 / compileSdk 34)
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     // Retrofit / OkHttp
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
