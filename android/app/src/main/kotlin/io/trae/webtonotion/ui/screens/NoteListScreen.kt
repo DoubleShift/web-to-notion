@@ -135,7 +135,7 @@ fun NoteListScreen(
         onTrash = { }
     )
         },
-        gesturesEnabled = drawerState.isOpen
+        gesturesEnabled = false
     ) {
         Scaffold(
             topBar = {
