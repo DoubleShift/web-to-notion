@@ -228,7 +228,7 @@ Write-Ok "设置页截图保存: $settingsScreenshot"
 
 # 点击"测试连接"按钮（针对 1080x2400 设备微调）
     Write-Step "[8/7] 测试 Notion 连接..."
-    Invoke-Adb "shell input tap 540 540" | Out-Null
+    Invoke-Adb "shell input tap 283 1186" | Out-Null
 Start-Sleep -Seconds 3
 $connectionScreenshot = Join-Path $distDir "screenshot_connection_$((Get-Date -Format 'yyyyMMdd_HHmmss')).png"
 Invoke-Adb "shell screencap -p /sdcard/wtn_test_connection.png" | Out-Null
