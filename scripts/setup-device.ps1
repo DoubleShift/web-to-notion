@@ -135,9 +135,25 @@ else {
     Write-Host "  请在手机上完成以下操作：" -ForegroundColor Cyan
     Write-Host "  1. 打开文件管理器 → Download 文件夹" -ForegroundColor Cyan
     Write-Host "  2. 点击 web-to-notion.apk 安装" -ForegroundColor Cyan
-    Write-Host "  3. 安装完成后，回到这里按 Enter 继续" -ForegroundColor Cyan
+    Write-Host "  3. 脚本会自动检测安装完成并继续" -ForegroundColor Cyan
     Write-Host "────────────────────────────────────────" -ForegroundColor Cyan
-    Read-Host "按 Enter 继续"
+
+    $installed = $false
+    for ($i = 0; $i -lt 12; $i++) {
+        Start-Sleep -Seconds 5
+        $check = & $AdbPath shell pm list packages $PackageName 2>&1
+        if ($check -match $PackageName) {
+            $installed = $true
+            Write-Ok "检测到应用已安装"
+            break
+        }
+        Write-Info "等待安装中... ($($i + 1)/12)"
+    }
+
+    if (-not $installed) {
+        Write-Error "未检测到应用安装。请在手机上完成安装后重试。"
+        exit 1
+    }
 }
 
 # 启动 App
