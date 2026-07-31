@@ -379,7 +379,10 @@ private fun MemoDrawerSheet(
             icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
             label = { Text("设置", fontSize = 15.sp, color = Color.Black) },
             selected = false,
-            onClick = onSettings
+            onClick = {
+                android.widget.Toast.makeText(context, "打开设置", android.widget.Toast.LENGTH_SHORT).show()
+                onSettings()
+            }
         )
 
         Spacer(Modifier.height(12.dp))
