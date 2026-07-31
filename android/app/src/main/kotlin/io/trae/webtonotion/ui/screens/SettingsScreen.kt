@@ -65,8 +65,11 @@ class SettingsViewModel(
     fun setGroqKey(v: String) { viewModelScope.launch { settings.setGroqKey(v) } }
     fun setGroqEnabled(v: Boolean) { viewModelScope.launch { settings.setGroqEnabled(v) } }
 
-    fun testConnection(onResult: (Boolean) -> Unit) {
-        viewModelScope.launch { onResult(repository.testConnection()) }
+    fun testConnection(onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            val result = repository.testConnection()
+            onResult(result.success, result.error)
+        }
     }
 }
 
@@ -121,10 +124,11 @@ fun SettingsScreen() {
                 )
                 Button(
                     onClick = {
-                        viewModel.testConnection { success ->
+                        viewModel.testConnection { success, error ->
                             scope.launch {
                                 snackbarHostState.showSnackbar(
-                                    if (success) "连接成功" else "连接失败，请检查 Token 和 Database ID"
+                                    if (success) "连接成功"
+                                    else "连接失败：$error"
                                 )
                             }
                         }

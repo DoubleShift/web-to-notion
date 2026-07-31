@@ -25,6 +25,21 @@
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
 
+# OkHttp logging (ensure HTTP logs survive R8 in release)
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+
+# kotlinx.serialization — keep generated serializers and @Serializable classes
+-keepattributes *Annotation*
+-keepclassmembers class **$$serializer { *; }
+-keepclasseswithmembers class * {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep,includedescriptorclasses class io.trae.webtonotion.**$$serializer { *; }
+-keep class io.trae.webtonotion.data.remote.dto.** { *; }
+
 # WorkManager
 -keep class androidx.work.ListenableWorker { *; }
 -keep class * extends androidx.work.ListenableWorker { *; }

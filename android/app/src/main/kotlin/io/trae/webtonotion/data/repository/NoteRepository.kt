@@ -120,11 +120,12 @@ class NoteRepository(
         }
     }
 
-    // 测试 Notion 连接
-    suspend fun testConnection(): Boolean {
+    // 测试 Notion 连接，返回成功标志和错误详情
+    suspend fun testConnection(): TestResult {
         val token = settings.getNotionTokenSync()
         val databaseId = settings.getDatabaseIdSync()
-        if (token.isEmpty() || databaseId.isEmpty()) return false
+        if (token.isEmpty()) return TestResult(false, "Notion Token 未填写")
+        if (databaseId.isEmpty()) return TestResult(false, "Database ID 未填写")
 
         return try {
             val request = NotionRequestBuilder.buildQueryRequest(pageSize = 1)
@@ -133,11 +134,20 @@ class NoteRepository(
                 databaseId,
                 request
             )
-            true
+            TestResult(true, null)
+        } catch (e: retrofit2.HttpException) {
+            val body = e.response()?.errorBody()?.string()
+            TestResult(false, "HTTP ${e.code()}: ${body ?: e.message()}")
+        } catch (e: java.net.UnknownHostException) {
+            TestResult(false, "无法连接到 api.notion.com（网络问题）")
+        } catch (e: java.net.SocketTimeoutException) {
+            TestResult(false, "连接超时")
         } catch (e: Exception) {
-            false
+            TestResult(false, "${e.javaClass.simpleName}: ${e.message}")
         }
     }
+
+    data class TestResult(val success: Boolean, val error: String?)
 
     suspend fun getPendingNotes(): List<NoteEntity> = dao.getPendingNotes()
 
