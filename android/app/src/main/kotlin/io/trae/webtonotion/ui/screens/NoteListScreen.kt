@@ -2,6 +2,9 @@ package io.trae.webtonotion.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,7 +40,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,21 +48,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,11 +75,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.trae.webtonotion.data.local.NoteEntity
 import io.trae.webtonotion.data.repository.NoteRepository
 import io.trae.webtonotion.ui.components.EmptyState
-import io.trae.webtonotion.ui.theme.BackgroundGrey
 import io.trae.webtonotion.ui.theme.MemoYellow
 import io.trae.webtonotion.ui.theme.TextSecondary
 import io.trae.webtonotion.ui.theme.TextTertiary
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -115,28 +108,13 @@ fun NoteListScreen(
         factory = viewModelFactory { initializer { NoteListViewModel(repository) } }
     )
     val notes by viewModel.notes.collectAsStateWithLifecycle()
-    val drawerState = rememberDrawerState(initialValue = androidx.compose.material3.DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
+    var drawerOpen by remember { mutableStateOf(false) }
 
     val pinned = notes.filter { it.isPinned }
     val recent = notes.filter { !it.isPinned }
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            MemoDrawerSheet(
-        noteCount = notes.size,
-        scope = scope,
-        drawerState = drawerState,
-        onMyNotes = { },
-        onAllNotes = { },
-        onSettings = onNavigateToSettings,
-        onTrash = { }
-    )
-        },
-        gesturesEnabled = false
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -148,7 +126,7 @@ fun NoteListScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        IconButton(onClick = { drawerOpen = true }) {
                             Icon(Icons.Outlined.Menu, contentDescription = "菜单")
                         }
                     },
@@ -242,15 +220,40 @@ fun NoteListScreen(
                 }
             }
         }
+
+        // 自定义左侧抽屉
+        AnimatedVisibility(
+            visible = drawerOpen,
+            enter = slideInHorizontally(initialOffsetX = { -it }),
+            exit = slideOutHorizontally(targetOffsetX = { -it })
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                // 遮罩：点击关闭抽屉
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable { drawerOpen = false }
+                )
+                // 抽屉内容
+                MemoDrawerSheet(
+                    noteCount = notes.size,
+                    onMyNotes = { drawerOpen = false },
+                    onAllNotes = { drawerOpen = false },
+                    onSettings = {
+                        drawerOpen = false
+                        onNavigateToSettings()
+                    },
+                    onTrash = { drawerOpen = false }
+                )
+            }
+        }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MemoDrawerSheet(
     noteCount: Int,
-    scope: CoroutineScope,
-    drawerState: DrawerState,
     onMyNotes: () -> Unit,
     onAllNotes: () -> Unit,
     onSettings: () -> Unit,
@@ -258,9 +261,11 @@ private fun MemoDrawerSheet(
 ) {
     var groupsExpanded by remember { mutableStateOf(false) }
 
-    ModalDrawerSheet(
-        modifier = Modifier.width(300.dp),
-        drawerContainerColor = Color.White
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(300.dp)
+            .background(Color.White)
     ) {
         // 顶部用户区
         Column(
@@ -305,67 +310,58 @@ private fun MemoDrawerSheet(
         HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
 
         // 菜单项
-        NavigationDrawerItem(
+        DrawerMenuItem(
             icon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
             label = { DrawerItemLabel("我的便签", noteCount) },
             selected = true,
-            onClick = { scope.launch { drawerState.close(); onMyNotes() } },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(12.dp)
+            onClick = onMyNotes
         )
-        NavigationDrawerItem(
+        DrawerMenuItem(
             icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
             label = { DrawerItemLabel("全部便签", noteCount) },
             selected = false,
-            onClick = { scope.launch { drawerState.close(); onAllNotes() } },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(12.dp)
+            onClick = onAllNotes
         )
 
         // 分组（可展开）
-        Surface(
-            onClick = { groupsExpanded = !groupsExpanded },
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = Color.Transparent
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { groupsExpanded = !groupsExpanded }
+                .padding(horizontal = 12.dp, vertical = 12.dp)
         ) {
-            Column {
-                Row(
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Label,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "分组",
+                    fontSize = 15.sp,
+                    color = Color.Black,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = if (groupsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                    contentDescription = null,
+                    tint = TextSecondary
+                )
+            }
+            if (groupsExpanded) {
+                Text(
+                    text = "暂无自定义分组",
+                    color = TextTertiary,
+                    fontSize = 14.sp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Label,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "分组",
-                        fontSize = 15.sp,
-                        color = Color.Black,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        imageVector = if (groupsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                        contentDescription = null,
-                        tint = TextSecondary
-                    )
-                }
-                if (groupsExpanded) {
-                    Text(
-                        text = "暂无自定义分组",
-                        color = TextTertiary,
-                        fontSize = 14.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 44.dp, bottom = 12.dp)
-                    )
-                }
+                        .padding(start = 36.dp, top = 8.dp, bottom = 4.dp)
+                )
             }
         }
 
@@ -373,27 +369,44 @@ private fun MemoDrawerSheet(
 
         HorizontalDivider(color = Color(0xFFF0F0F0), thickness = 1.dp)
 
-        NavigationDrawerItem(
+        DrawerMenuItem(
             icon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
             label = { Text("回收站", fontSize = 15.sp, color = Color.Black) },
             selected = false,
-            onClick = { scope.launch { drawerState.close(); onTrash() } },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(12.dp)
+            onClick = onTrash
         )
-        NavigationDrawerItem(
+        DrawerMenuItem(
             icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
             label = { Text("设置", fontSize = 15.sp, color = Color.Black) },
             selected = false,
-            onClick = {
-                android.util.Log.d("MemoDrawer", "Settings clicked")
-                scope.launch { drawerState.close(); onSettings() }
-            },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-            shape = RoundedCornerShape(12.dp)
+            onClick = onSettings
         )
 
         Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun DrawerMenuItem(
+    icon: @Composable () -> Unit,
+    label: @Composable () -> Unit,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val bgColor = if (selected) Color(0xFFF3E5F5) else Color.Transparent
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bgColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        icon()
+        label()
     }
 }
 
