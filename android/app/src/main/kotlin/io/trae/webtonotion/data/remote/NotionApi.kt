@@ -20,14 +20,14 @@ import retrofit2.http.Path
 
 interface NotionApi {
 
-    @Headers("Notion-Version: 2026-03-11")
+    @Headers("Notion-Version: 2022-06-28")
     @POST("v1/pages")
     suspend fun createPage(
         @Header("Authorization") auth: String,
         @Body body: JsonObject
     ): CreatePageResponse
 
-    @Headers("Notion-Version: 2026-03-11")
+    @Headers("Notion-Version: 2022-06-28")
     @POST("v1/databases/{database_id}/query")
     suspend fun queryDatabase(
         @Header("Authorization") auth: String,
@@ -35,14 +35,14 @@ interface NotionApi {
         @Body body: JsonObject
     ): QueryDatabaseResponse
 
-    @Headers("Notion-Version: 2026-03-11")
+    @Headers("Notion-Version: 2022-06-28")
     @GET("v1/blocks/{block_id}/children")
     suspend fun getBlockChildren(
         @Header("Authorization") auth: String,
         @Path("block_id") blockId: String
     ): GetBlocksResponse
 
-    @Headers("Notion-Version: 2026-03-11")
+    @Headers("Notion-Version: 2022-06-28")
     @PATCH("v1/pages/{page_id}")
     suspend fun updatePage(
         @Header("Authorization") auth: String,
@@ -50,7 +50,7 @@ interface NotionApi {
         @Body body: JsonObject
     ): CreatePageResponse
 
-    @Headers("Notion-Version: 2026-03-11")
+    @Headers("Notion-Version: 2022-06-28")
     @PATCH("v1/blocks/{block_id}/children")
     suspend fun appendBlockChildren(
         @Header("Authorization") auth: String,
@@ -58,7 +58,7 @@ interface NotionApi {
         @Body body: JsonObject
     ): GetBlocksResponse
 
-    @Headers("Notion-Version: 2026-03-11")
+    @Headers("Notion-Version: 2022-06-28")
     @PATCH("v1/pages/{page_id}")
     suspend fun archivePage(
         @Header("Authorization") auth: String,
@@ -66,14 +66,14 @@ interface NotionApi {
         @Body body: JsonObject
     ): CreatePageResponse
 
-    @Headers("Notion-Version: 2026-03-11")
+    @Headers("Notion-Version: 2022-06-28")
     @POST("v1/file_uploads")
     suspend fun createFileUpload(
         @Header("Authorization") auth: String,
         @Body body: JsonObject
     ): FileUploadCreateResponse
 
-    @Headers("Notion-Version: 2026-03-11")
+    @Headers("Notion-Version: 2022-06-28")
     @Multipart
     @POST("v1/file_uploads/{file_upload_id}/send")
     suspend fun sendFileUpload(
