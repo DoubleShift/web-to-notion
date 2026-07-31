@@ -130,12 +130,14 @@ else {
     Invoke-Adb "push `"$ApkPath`" $PhoneApkPath" | Out-Null
     Write-Ok "已推送到手机：Download/web-to-notion.apk"
 
+    # 自动打开系统安装器
+    Write-Host "  正在打开系统安装器..." -ForegroundColor Cyan
+    Invoke-Adb "shell am start -a android.intent.action.VIEW -d file://$PhoneApkPath -t application/vnd.android.package-archive" | Out-Null
+
     Write-Host "`n" -NoNewline
     Write-Host "────────────────────────────────────────" -ForegroundColor Cyan
-    Write-Host "  请在手机上完成以下操作：" -ForegroundColor Cyan
-    Write-Host "  1. 打开文件管理器 → Download 文件夹" -ForegroundColor Cyan
-    Write-Host "  2. 点击 web-to-notion.apk 安装" -ForegroundColor Cyan
-    Write-Host "  3. 脚本会自动检测安装完成并继续" -ForegroundColor Cyan
+    Write-Host "  请在手机上点击「安装」确认" -ForegroundColor Cyan
+    Write-Host "  脚本会自动检测安装完成并继续" -ForegroundColor Cyan
     Write-Host "────────────────────────────────────────" -ForegroundColor Cyan
 
     $installed = $false
@@ -151,7 +153,7 @@ else {
     }
 
     if (-not $installed) {
-        Write-Error "未检测到应用安装。请在手机上完成安装后重试。"
+        Write-Error "未检测到应用安装。请在手机上点击「安装」后重试。"
         exit 1
     }
 }
