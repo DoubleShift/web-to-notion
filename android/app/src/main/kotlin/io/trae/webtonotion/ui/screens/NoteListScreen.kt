@@ -3,24 +3,30 @@ package io.trae.webtonotion.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.NoteAdd
+import androidx.compose.material.icons.outlined.Menu
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.OpenInNew
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -33,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -41,9 +48,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -53,8 +64,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import io.trae.webtonotion.data.local.NoteEntity
 import io.trae.webtonotion.data.repository.NoteRepository
 import io.trae.webtonotion.ui.components.EmptyState
-import io.trae.webtonotion.ui.components.StatusChip
-import io.trae.webtonotion.ui.components.TypeChip
+import io.trae.webtonotion.ui.theme.MemoYellow
+import io.trae.webtonotion.ui.theme.TextSecondary
+import io.trae.webtonotion.ui.theme.TextTertiary
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -69,10 +81,6 @@ class NoteListViewModel(private val repository: NoteRepository) : ViewModel() {
 
     fun deleteNote(id: Long) {
         viewModelScope.launch { repository.deleteNote(id) }
-    }
-
-    fun openInNotion(notionPageId: String?) {
-        // handled in composable via context
     }
 }
 
@@ -90,112 +98,176 @@ fun NoteListScreen(
     )
     val notes by viewModel.notes.collectAsStateWithLifecycle()
 
+    val pinned = notes.filter { it.isPinned }
+    val recent = notes.filter { !it.isPinned }
+    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("我的笔记") },
-                actions = {
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "设置")
+                title = {
+                    Text(
+                        text = "我的便签",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { /* 抽屉菜单占位 */ }) {
+                        Icon(Icons.Outlined.Menu, contentDescription = "菜单")
                     }
-                }
+                },
+                actions = {
+                    IconButton(onClick = { /* 搜索占位 */ }) {
+                        Icon(Icons.Outlined.Search, contentDescription = "搜索")
+                    }
+                    IconButton(onClick = { onNavigateToSettings() }) {
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "更多")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                    actionIconContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onNewNote) {
-                Icon(Icons.Outlined.NoteAdd, contentDescription = "新建便签")
+            FloatingActionButton(
+                onClick = onNewNote,
+                shape = CircleShape,
+                containerColor = MemoYellow,
+                contentColor = Color.White,
+                modifier = Modifier.size(56.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = "新建便签",
+                    modifier = Modifier.size(28.dp)
+                )
             }
         }
     ) { padding ->
         if (notes.isEmpty()) {
             EmptyState(
-                title = "还没有笔记",
-                subtitle = "点右下角 + 新建，或用分享菜单发送链接"
+                title = "还没有便签",
+                subtitle = "点击右下角按钮新建"
             )
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    start = 16.dp, end = 16.dp, top = padding.calculateTopPadding(), bottom = 80.dp
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = padding.calculateTopPadding(),
+                    bottom = 88.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(notes, key = { it.id }) { note ->
-                    NoteCard(
-                        note = note,
-                        onClick = { onNoteClick(note.id) },
-                        onEdit = { onNoteClick(note.id) },
-                        onDelete = { viewModel.deleteNote(note.id) },
-                        onOpenInNotion = {
-                            note.notionPageId?.let { pageId ->
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://notion.so/$pageId"))
-                                context.startActivity(intent)
+                if (pinned.isNotEmpty()) {
+                    item {
+                        SectionTitle("置顶")
+                    }
+                    items(pinned, key = { it.id }) { note ->
+                        MemoCard(
+                            note = note,
+                            dateFormat = dateFormat,
+                            onClick = { onNoteClick(note.id) },
+                            onEdit = { onNoteClick(note.id) },
+                            onDelete = { viewModel.deleteNote(note.id) },
+                            onOpenInNotion = {
+                                note.notionPageId?.let { pageId ->
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://notion.so/$pageId"))
+                                    context.startActivity(intent)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
+                }
+
+                if (recent.isNotEmpty()) {
+                    item {
+                        SectionTitle("最近")
+                    }
+                    items(recent, key = { it.id }) { note ->
+                        MemoCard(
+                            note = note,
+                            dateFormat = dateFormat,
+                            onClick = { onNoteClick(note.id) },
+                            onEdit = { onNoteClick(note.id) },
+                            onDelete = { viewModel.deleteNote(note.id) },
+                            onOpenInNotion = {
+                                note.notionPageId?.let { pageId ->
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://notion.so/$pageId"))
+                                    context.startActivity(intent)
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+@Composable
+private fun SectionTitle(title: String) {
+    Text(
+        text = title,
+        color = TextTertiary,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NoteCard(
+private fun MemoCard(
     note: NoteEntity,
+    dateFormat: SimpleDateFormat,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onOpenInNotion: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    val timeFormat = remember { SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()) }
 
     Box {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = { showMenu = true }
                 ),
-            shape = MaterialTheme.shapes.medium,
+            shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)
+            ) {
                 Text(
                     text = note.title.ifBlank { "无标题" },
-                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (note.content.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = note.content.take(100),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    StatusChip(note.status)
-                    TypeChip(note.type)
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        text = timeFormat.format(Date(note.createdAt)),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = dateFormat.format(Date(note.updatedAt)),
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
             }
         }
 
@@ -223,4 +295,3 @@ private fun NoteCard(
         }
     }
 }
-

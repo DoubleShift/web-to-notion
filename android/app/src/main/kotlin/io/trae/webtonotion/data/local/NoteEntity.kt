@@ -31,6 +31,7 @@ data class NoteEntity(
     val status: String = NoteStatus.DRAFT,
     val error: String? = null,
     val retryCount: Int = 0,
+    val isPinned: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

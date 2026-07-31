@@ -18,13 +18,19 @@ class NoteRepository(
     fun observeAll(): Flow<List<NoteEntity>> = dao.observeAll()
     fun observeById(id: Long): Flow<NoteEntity?> = dao.observeById(id)
 
-    suspend fun createNote(title: String, content: String, tags: List<String> = emptyList()): Long {
+    suspend fun createNote(
+        title: String,
+        content: String,
+        tags: List<String> = emptyList(),
+        isPinned: Boolean = false
+    ): Long {
         val note = NoteEntity(
             type = NoteType.NOTE,
             title = title,
             content = content,
             tags = tags.joinToString(","),
-            status = NoteStatus.DRAFT
+            status = NoteStatus.DRAFT,
+            isPinned = isPinned
         )
         return dao.insert(note)
     }

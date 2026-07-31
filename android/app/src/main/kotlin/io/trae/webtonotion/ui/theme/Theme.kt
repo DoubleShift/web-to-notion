@@ -6,59 +6,44 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-// 华为 HarmonyOS Design 色彩 → Material3 ColorScheme 映射
-// 参照 HuaweiDesign.md §2.1
+// 魅族便签风格主题
 
 private val LightColorScheme = lightColorScheme(
-    primary = BrandLight,
-    onPrimary = BackgroundPrimaryLight,
-    primaryContainer = InteractiveSelectLight,
-    onPrimaryContainer = FontPrimaryLight,
-    secondary = FontSecondaryLight,
-    onSecondary = BackgroundPrimaryLight,
-    tertiary = ConfirmColor,
-    onTertiary = BackgroundPrimaryLight,
-    error = WarningColor,
-    onError = BackgroundPrimaryLight,
-    background = BackgroundPrimaryLight,
-    onBackground = FontPrimaryLight,
-    surface = BackgroundPrimaryLight,
-    onSurface = FontPrimaryLight,
-    surfaceVariant = BackgroundSecondaryLight,
-    onSurfaceVariant = FontSecondaryLight,
-    surfaceContainer = BackgroundTertiaryLight,
-    surfaceContainerHigh = BackgroundTertiaryLight,
-    surfaceContainerHighest = BackgroundFourthLight,
-    outline = FontTertiaryLight,
-    outlineVariant = CompDividerLight,
-    inverseSurface = BackgroundSecondaryDark,
-    inverseOnSurface = FontPrimaryDark
+    primary = MemoYellow,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFF4E0),
+    onPrimaryContainer = TextPrimary,
+    secondary = TextSecondary,
+    onSecondary = Color.White,
+    background = BackgroundGrey,
+    onBackground = TextPrimary,
+    surface = CardWhite,
+    onSurface = TextPrimary,
+    surfaceVariant = BackgroundGrey,
+    onSurfaceVariant = TextSecondary,
+    outline = Color(0xFFE0E0E0),
+    outlineVariant = Color(0xFFEEEEEE),
+    error = ErrorRed,
+    onError = Color.White
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = BrandDark,
-    onPrimary = BackgroundPrimaryDark,
-    primaryContainer = InteractiveSelectDark,
-    onPrimaryContainer = FontPrimaryDark,
-    secondary = FontSecondaryDark,
-    onSecondary = BackgroundPrimaryDark,
-    tertiary = ConfirmColor,
-    onTertiary = BackgroundPrimaryDark,
-    error = WarningColor,
-    onError = BackgroundPrimaryDark,
-    background = BackgroundSecondaryDark,
-    onBackground = FontPrimaryDark,
-    surface = BackgroundSecondaryDark,
-    onSurface = FontPrimaryDark,
-    surfaceVariant = BackgroundTertiaryDark,
-    onSurfaceVariant = FontSecondaryDark,
-    surfaceContainer = BackgroundTertiaryDark,
-    surfaceContainerHigh = BackgroundFourthDark,
-    surfaceContainerHighest = BackgroundFourthDark,
-    outline = FontTertiaryDark,
-    outlineVariant = CompDividerDark,
-    inverseSurface = BackgroundSecondaryLight,
-    inverseOnSurface = FontPrimaryLight
+    primary = MemoYellowDark,
+    onPrimary = Color.Black,
+    primaryContainer = Color(0xFF3D3118),
+    onPrimaryContainer = Color.White,
+    secondary = Color(0xFF9A9A9A),
+    onSecondary = Color.Black,
+    background = Color(0xFF1C1C1E),
+    onBackground = Color.White,
+    surface = Color(0xFF2C2C2E),
+    onSurface = Color.White,
+    surfaceVariant = Color(0xFF1C1C1E),
+    onSurfaceVariant = Color(0xFF9A9A9A),
+    outline = Color(0xFF3A3A3C),
+    outlineVariant = Color(0xFF2C2C2E),
+    error = ErrorRed,
+    onError = Color.White
 )
 
 @Composable
