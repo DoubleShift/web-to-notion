@@ -318,33 +318,27 @@ private fun MemoDrawerSheet(
         )
 
         // 分组（可展开）
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .clickable { groupsExpanded = !groupsExpanded }
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Label,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "分组",
-                fontSize = 15.sp,
-                color = Color.Black,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = if (groupsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                contentDescription = null,
-                tint = TextSecondary
-            )
-        }
+        NavigationDrawerItem(
+            icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
+            label = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("分组", fontSize = 15.sp, color = Color.Black)
+                    Icon(
+                        imageVector = if (groupsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                        contentDescription = null,
+                        tint = TextSecondary
+                    )
+                }
+            },
+            selected = false,
+            onClick = { groupsExpanded = !groupsExpanded },
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+            shape = RoundedCornerShape(12.dp)
+        )
         if (groupsExpanded) {
             Text(
                 text = "暂无自定义分组",
