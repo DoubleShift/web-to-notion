@@ -142,7 +142,7 @@ class NoteRepository(
             if (issues.isNotEmpty()) {
                 return TestResult(
                     false,
-                    "数据库 schema 不匹配：${issues.joinToString("；")}。请使用设置中的"创建数据库"功能。"
+                    "数据库 schema 不匹配：${issues.joinToString("；")}。请使用设置中的「创建数据库」功能。"
                 )
             }
             TestResult(true, null)
