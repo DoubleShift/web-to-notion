@@ -1,12 +1,13 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    一键安装 web-to-notion APK 并自动填入 Notion Token / Database ID。
+    一键推送 web-to-notion APK 到手机并自动填入 Notion Token / Database ID。
 
 .DESCRIPTION
-    1. 通过 ADB 安装 APK（支持自动重试）。
-    2. 启动 App。
-    3. 发送广播把配置写入 App 的 DataStore。
+    1. 把 APK 推送到手机存储（默认 Download 目录）。
+    2. 提示用户在手机上点击 APK 手动安装（绕过国产系统的 USB 安装限制）。
+    3. 安装完成后按任意键继续，脚本自动启动 App。
+    4. 发送广播把配置写入 App 的 DataStore。
 
     敏感配置（Notion Token / Database ID）请写在同目录的 secrets.ps1 中，
     该文件已被 .gitignore 排除，不会提交到 GitHub。
@@ -17,19 +18,25 @@
 .PARAMETER AdbPath
     adb 可执行文件路径。默认使用 D:\Dev\Lib\adb\adb.exe，找不到则尝试环境变量中的 adb。
 
+.PARAMETER AdbInstall
+    强制使用 ADB 直接安装（旧行为）。如果国产系统反复拦截 USB 安装，不建议使用。
+
 .EXAMPLE
     .\scripts\setup-device.ps1
     .\scripts\setup-device.ps1 -ApkPath "D:\apk\app-release.apk"
+    .\scripts\setup-device.ps1 -AdbInstall
 #>
 [CmdletBinding()]
 param(
     [string] $ApkPath,
-    [string] $AdbPath = "D:\Dev\Lib\adb\adb.exe"
+    [string] $AdbPath = "D:\Dev\Lib\adb\adb.exe",
+    [switch] $AdbInstall
 )
 
 $PackageName = "io.trae.webtonotion"
 $MainActivity = "$PackageName/.MainActivity"
 $Receiver = "$PackageName/.receiver.ConfigReceiver"
+$PhoneApkPath = "/sdcard/Download/web-to-notion.apk"
 
 # 加载本地敏感配置
 $secretsPath = Join-Path $PSScriptRoot "secrets.ps1"
@@ -52,9 +59,7 @@ if (-not $Global:NotionToken -or -not $Global:DatabaseId) {
 # 定位 adb
 if (-not (Test-Path $AdbPath)) {
     $adb = Get-Command adb -ErrorAction SilentlyContinue
-    if ($adb) {
-        $AdbPath = $adb.Source
-    }
+    if ($adb) { $AdbPath = $adb.Source }
     else {
         Write-Error "找不到 adb，请修改 -AdbPath 参数或将 adb 加入 PATH。"
         exit 1
@@ -65,6 +70,20 @@ function Invoke-Adb {
     param([string]$Arguments)
     $proc = Start-Process -FilePath $AdbPath -ArgumentList $Arguments -NoNewWindow -Wait -PassThru
     return $proc.ExitCode
+}
+
+# 颜色输出
+function Write-Step {
+    param([string]$Message)
+    Write-Host "`n$Message" -ForegroundColor Yellow
+}
+function Write-Ok {
+    param([string]$Message)
+    Write-Host "  ✅ $Message" -ForegroundColor Green
+}
+function Write-Info {
+    param([string]$Message)
+    Write-Host "  ℹ️  $Message" -ForegroundColor Cyan
 }
 
 # 定位 APK
@@ -82,45 +101,55 @@ if (-not (Test-Path $ApkPath)) {
     exit 1
 }
 
-Write-Host "APK: $ApkPath" -ForegroundColor Cyan
-Write-Host "ADB: $AdbPath" -ForegroundColor Cyan
+Write-Info "APK: $ApkPath"
+Write-Info "ADB: $AdbPath"
 
 # 检查设备连接
-Write-Host "`n[1/4] 检查设备连接..." -ForegroundColor Yellow
+Write-Step "[1/4] 检查设备连接..."
 $devices = & $AdbPath devices | Select-String -Pattern "device$" | ForEach-Object { $_.Line }
 if (-not $devices) {
     Write-Error "没有检测到已连接的 Android 设备，请插上手机并开启 USB 调试。"
     exit 1
 }
-$devices | ForEach-Object { Write-Host "  已连接: $_" -ForegroundColor Green }
+$devices | ForEach-Object { Write-Ok "已连接: $_" }
 
-# 安装 APK
-Write-Host "`n[2/4] 安装 APK..." -ForegroundColor Yellow
-$uninstallCode = Invoke-Adb "uninstall $PackageName"
-if ($uninstallCode -eq 0) {
-    Write-Host "  已卸载旧版本" -ForegroundColor Green
+if ($AdbInstall) {
+    # 旧行为：ADB 直接安装
+    Write-Step "[2/4] 通过 ADB 安装 APK..."
+    Invoke-Adb "uninstall $PackageName" | Out-Null
+    $installCode = Invoke-Adb "install `"$ApkPath`""
+    if ($installCode -ne 0) {
+        Write-Error "安装失败。请在手机上允许 USB 安装后重试，或去掉 -AdbInstall 使用推送安装。"
+        exit 1
+    }
+    Write-Ok "安装成功"
 }
 else {
-    Write-Host "  没有旧版本或卸载失败，继续安装" -ForegroundColor DarkGray
-}
+    # 默认行为：推送到手机，用户手动安装
+    Write-Step "[2/4] 推送 APK 到手机 Download 目录..."
+    Invoke-Adb "push `"$ApkPath`" $PhoneApkPath" | Out-Null
+    Write-Ok "已推送到手机：Download/web-to-notion.apk"
 
-$installCode = Invoke-Adb "install `"$ApkPath`""
-if ($installCode -ne 0) {
-    Write-Error "安装失败（可能是魅族/小米等系统需要手动允许 USB 安装）。请在手机上允许后重试。"
-    exit 1
+    Write-Host "`n" -NoNewline
+    Write-Host "────────────────────────────────────────" -ForegroundColor Cyan
+    Write-Host "  请在手机上完成以下操作：" -ForegroundColor Cyan
+    Write-Host "  1. 打开文件管理器 → Download 文件夹" -ForegroundColor Cyan
+    Write-Host "  2. 点击 web-to-notion.apk 安装" -ForegroundColor Cyan
+    Write-Host "  3. 安装完成后，回到这里按 Enter 继续" -ForegroundColor Cyan
+    Write-Host "────────────────────────────────────────" -ForegroundColor Cyan
+    Read-Host "按 Enter 继续"
 }
-Write-Host "  安装成功" -ForegroundColor Green
 
 # 启动 App
-Write-Host "`n[3/4] 启动 App..." -ForegroundColor Yellow
+Write-Step "[3/4] 启动 App..."
 Invoke-Adb "shell am start -n $MainActivity" | Out-Null
 Start-Sleep -Seconds 2
-Write-Host "  已启动" -ForegroundColor Green
+Write-Ok "已启动"
 
 # 发送配置广播
-Write-Host "`n[4/4] 写入 Notion 配置..." -ForegroundColor Yellow
+Write-Step "[4/4] 写入 Notion 配置..."
 $broadcastArgs = "shell am broadcast -a io.trae.webtonotion.SET_CONFIG -n $Receiver --es notion_token `"$Global:NotionToken`" --es database_id `"$Global:DatabaseId`""
 Invoke-Adb $broadcastArgs | Out-Null
-Write-Host "  配置已发送" -ForegroundColor Green
+Write-Ok "配置已发送"
 
 Write-Host "`n✅ 完成。打开 App → 设置，即可看到 Token 和 Database ID 已填入。" -ForegroundColor Cyan

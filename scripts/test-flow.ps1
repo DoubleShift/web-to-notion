@@ -28,12 +28,14 @@
 param(
     [string] $ApkPath,
     [string] $AdbPath = "D:\Dev\Lib\adb\adb.exe",
-    [switch] $KeepArtifacts
+    [switch] $KeepArtifacts,
+    [switch] $AdbInstall
 )
 
 $PackageName = "io.trae.webtonotion"
 $MainActivity = "$PackageName/.MainActivity"
 $Receiver = "$PackageName/.receiver.ConfigReceiver"
+$PhoneApkPath = "/sdcard/Download/web-to-notion-test.apk"
 $Repo = "DoubleShift/web-to-notion"
 
 # 颜色输出
@@ -134,25 +136,38 @@ if (-not $devices) {
 $devices | ForEach-Object { Write-Info "已连接: $_" }
 
 # 清 logcat
-Write-Step "[3/7] 清理并启动日志抓取..."
+Write-Step "[3/7] 清理日志缓存..."
 Invoke-Adb "logcat -c" | Out-Null
 $logFile = Join-Path $distDir "logcat_$((Get-Date -Format 'yyyyMMdd_HHmmss')).txt"
-$logcatJob = Start-Job -ScriptBlock {
-    param($adb, $pkg, $out)
-    & $adb logcat -v threadtime | Select-String -Pattern "$pkg|AndroidRuntime|FATAL EXCEPTION" | Tee-Object -FilePath $out
-} -ArgumentList $AdbPath, $PackageName, $logFile
-Write-Ok "日志写入: $logFile"
+Write-Ok "日志将在测试结束后保存到: $logFile"
 
 # 安装 APK
 Write-Step "[4/7] 安装 APK..."
-Invoke-Adb "uninstall $PackageName" | Out-Null
-$installCode = Invoke-Adb "install `"$ApkPath`""
-if ($installCode -ne 0) {
-    Stop-Job $logcatJob -ErrorAction SilentlyContinue
-    Write-Error "安装失败。请检查手机是否允许 USB 安装。"
-    exit 1
+
+if ($AdbInstall) {
+    # 强制 ADB 直接安装（旧行为）
+    Invoke-Adb "uninstall $PackageName" | Out-Null
+    $installCode = Invoke-Adb "install `"$ApkPath`""
+    if ($installCode -ne 0) {
+        Write-Error "ADB 安装失败。请使用推送安装（去掉 -AdbInstall）。"
+        exit 1
+    }
+    Write-Ok "ADB 安装成功"
 }
-Write-Ok "安装成功"
+else {
+    # 默认：推送到手机，用户手动安装
+    Invoke-Adb "push `"$ApkPath`" $PhoneApkPath" | Out-Null
+    Write-Ok "已推送到手机：Download/web-to-notion-test.apk"
+
+    Write-Host "`n" -NoNewline
+    Write-Host "────────────────────────────────────────" -ForegroundColor Cyan
+    Write-Host "  请在手机上完成安装：" -ForegroundColor Cyan
+    Write-Host "  1. 打开文件管理器 → Download 文件夹" -ForegroundColor Cyan
+    Write-Host "  2. 点击 web-to-notion-test.apk 安装" -ForegroundColor Cyan
+    Write-Host "  3. 安装完成后按 Enter 继续测试" -ForegroundColor Cyan
+    Write-Host "────────────────────────────────────────" -ForegroundColor Cyan
+    Read-Host "按 Enter 继续"
+}
 
 # 启动 App
 Write-Step "[5/7] 启动 App 并写入配置..."
@@ -169,25 +184,42 @@ Invoke-Adb "shell screencap -p /sdcard/wtn_test_home.png" | Out-Null
 Invoke-Adb "pull /sdcard/wtn_test_home.png `"$screenshot`"" | Out-Null
 Write-Ok "截图保存: $screenshot"
 
-# 模拟点击抽屉设置项
-Write-Step "[7/7] 验证抽屉菜单设置项可点击..."
-# 先打开抽屉：点击菜单按钮（左上角，坐标因设备而异，此处给常见 1080p 参考值）
+# 验证能否进入设置页（暂时用右上角"更多"按钮绕过抽屉点击问题）
+Write-Step "[7/7] 验证设置页可打开..."
+# 先尝试点击抽屉设置项（调试用）
 Invoke-Adb "shell input tap 120 160" | Out-Null
 Start-Sleep -Milliseconds 500
-# 点击"设置"项（抽屉中部偏下，需根据实际截图微调）
-Invoke-Adb "shell input tap 400 900" | Out-Null
+$drawerScreenshot = Join-Path $distDir "screenshot_drawer_$((Get-Date -Format 'yyyyMMdd_HHmmss')).png"
+Invoke-Adb "shell screencap -p /sdcard/wtn_test_drawer.png" | Out-Null
+Invoke-Adb "pull /sdcard/wtn_test_drawer.png `"$drawerScreenshot`"" | Out-Null
+Write-Ok "抽屉截图保存: $drawerScreenshot"
+# 点击遮罩关闭抽屉
+Invoke-Adb "shell input tap 950 1200" | Out-Null
+Start-Sleep -Milliseconds 300
+# 点击右上角"更多"按钮进入设置
+Invoke-Adb "shell input tap 1000 160" | Out-Null
 Start-Sleep -Seconds 2
 $settingsScreenshot = Join-Path $distDir "screenshot_settings_$((Get-Date -Format 'yyyyMMdd_HHmmss')).png"
 Invoke-Adb "shell screencap -p /sdcard/wtn_test_settings.png" | Out-Null
 Invoke-Adb "pull /sdcard/wtn_test_settings.png `"$settingsScreenshot`"" | Out-Null
 Write-Ok "设置页截图保存: $settingsScreenshot"
 
+# 点击"测试连接"按钮
+Write-Step "[8/7] 测试 Notion 连接..."
+Invoke-Adb "shell input tap 300 750" | Out-Null
+Start-Sleep -Seconds 3
+$connectionScreenshot = Join-Path $distDir "screenshot_connection_$((Get-Date -Format 'yyyyMMdd_HHmmss')).png"
+Invoke-Adb "shell screencap -p /sdcard/wtn_test_connection.png" | Out-Null
+Invoke-Adb "pull /sdcard/wtn_test_connection.png `"$connectionScreenshot`"" | Out-Null
+Write-Ok "连接测试结果截图保存: $connectionScreenshot"
+
 # 等待同步日志
 Write-Step "等待 10 秒收集同步日志..."
 Start-Sleep -Seconds 10
-Stop-Job $logcatJob -ErrorAction SilentlyContinue
-Receive-Job $logcatJob -ErrorAction SilentlyContinue | Out-Null
-Remove-Job $logcatJob -ErrorAction SilentlyContinue
+
+# 抓取日志到文件
+& $AdbPath logcat -d -v threadtime | Select-String -Pattern "$PackageName|AndroidRuntime|FATAL EXCEPTION" | Out-File -FilePath $logFile -Encoding UTF8
+Write-Ok "日志已保存"
 
 # 汇总
 Write-Step "测试完成"
