@@ -24,14 +24,14 @@ class SettingsStore(private val context: Context) {
 
     companion object {
         private val NOTION_TOKEN = stringPreferencesKey("notion_token")
-        private val DATABASE_ID = stringPreferencesKey("database_id")
+        private val PARENT_PAGE_ID = stringPreferencesKey("parent_page_id")
         private val GROQ_KEY = stringPreferencesKey("groq_key")
         private val GROQ_ENABLED = booleanPreferencesKey("groq_enabled")
         private val AI_MODE = stringPreferencesKey("ai_mode")
     }
 
     val notionToken: Flow<String> = context.dataStore.data.map { it[NOTION_TOKEN] ?: "" }
-    val databaseId: Flow<String> = context.dataStore.data.map { it[DATABASE_ID] ?: "" }
+    val parentPageId: Flow<String> = context.dataStore.data.map { it[PARENT_PAGE_ID] ?: "" }
     val groqKey: Flow<String> = context.dataStore.data.map { it[GROQ_KEY] ?: "" }
     val groqEnabled: Flow<Boolean> = context.dataStore.data.map { it[GROQ_ENABLED] ?: false }
     val aiMode: Flow<String> = context.dataStore.data.map { it[AI_MODE] ?: AiMode.CLEAN }
@@ -40,8 +40,8 @@ class SettingsStore(private val context: Context) {
         context.dataStore.edit { it[NOTION_TOKEN] = value }
     }
 
-    suspend fun setDatabaseId(value: String) {
-        context.dataStore.edit { it[DATABASE_ID] = value }
+    suspend fun setParentPageId(value: String) {
+        context.dataStore.edit { it[PARENT_PAGE_ID] = value }
     }
 
     suspend fun setGroqKey(value: String) {
@@ -60,8 +60,8 @@ class SettingsStore(private val context: Context) {
     suspend fun getNotionTokenSync(): String =
         context.dataStore.data.first()[NOTION_TOKEN] ?: ""
 
-    suspend fun getDatabaseIdSync(): String =
-        context.dataStore.data.first()[DATABASE_ID] ?: ""
+    suspend fun getParentPageIdSync(): String =
+        context.dataStore.data.first()[PARENT_PAGE_ID] ?: ""
 
     suspend fun getGroqKeySync(): String =
         context.dataStore.data.first()[GROQ_KEY] ?: ""

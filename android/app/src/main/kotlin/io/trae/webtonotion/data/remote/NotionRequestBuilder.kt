@@ -80,108 +80,46 @@ object NotionRequestBuilder {
         }
     }
 
-    // 构建创建页面的请求体
+    // 构建创建页面的请求体（挂在父页面下）
     fun buildCreatePage(
-        databaseId: String,
+        parentPageId: String,
         title: String,
         type: String,
         url: String? = null,
         tags: List<String> = emptyList(),
         children: JsonArray = buildJsonArray {}
     ): JsonObject = buildJsonObject {
-        putJsonObject("parent") { put("database_id", databaseId) }
-        putJsonObject("properties") {
-            // Title (title 类型)
-            putJsonObject("Title") {
-                put("title", buildTextRichText(title))
-            }
-            // Type (select)
-            putJsonObject("Type") {
-                putJsonObject("select") { put("name", type) }
-            }
-            // URL (webpage 类型填)
-            if (url != null) {
-                putJsonObject("URL") { put("url", url) }
-            }
-            // Tags (multi_select)
-            if (tags.isNotEmpty()) {
-                putJsonObject("Tags") {
-                    put("multi_select", buildJsonArray {
-                        tags.forEach { tag ->
-                            add(buildJsonObject { put("name", tag) })
-                        }
-                    })
-                }
-            }
-            // Created (date)
-            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                .format(java.util.Date())
-            putJsonObject("Created") {
-                putJsonObject("date") {
-                    put("start", today)
-                }
-            }
-        }
-        put("children", children)
-    }
-
-    // 创建数据库的请求体
-    fun buildCreateDatabase(parentPageId: String): JsonObject = buildJsonObject {
         putJsonObject("parent") { put("page_id", parentPageId) }
-        putJsonArray("title") {
-            add(buildJsonObject {
-                put("type", "text")
-                putJsonObject("text") { put("content", "Web to Notion") }
-            })
-        }
         putJsonObject("properties") {
-            putJsonObject("Title") { put("title", buildJsonObject {}) }
-            putJsonObject("Type") {
-                putJsonObject("select") {
-                    putJsonArray("options") {
-                        add(buildJsonObject {
-                            put("name", "note")
-                            put("color", "yellow")
-                        })
-                        add(buildJsonObject {
-                            put("name", "webpage")
-                            put("color", "blue")
-                        })
+            // Page 的标题属性 key 必须是 "title"
+            put("title", buildTextRichText(title))
+        }
+        // 把标签、URL、类型作为页面开头的 callout / paragraph blocks
+        val metaBlocks = buildJsonArray {
+            if (type.isNotBlank() || tags.isNotEmpty()) {
+                val meta = buildString {
+                    append("类型: $type")
+                    if (tags.isNotEmpty()) {
+                        append("  |  标签: ${tags.joinToString(", ")}")
                     }
                 }
+                add(buildCallout(meta))
             }
-            putJsonObject("URL") { put("url", buildJsonObject {}) }
-            putJsonObject("Tags") { put("multi_select", buildJsonObject {}) }
-            putJsonObject("Created") { put("date", buildJsonObject {}) }
-        }
-    }
-
-    // 验证数据库属性是否包含必需的字段
-    fun validateDatabaseSchema(properties: JsonObject): List<String> {
-        val required = mapOf(
-            "Title" to "title",
-            "Type" to "select",
-            "URL" to "url",
-            "Tags" to "multi_select",
-            "Created" to "date"
-        )
-        val missing = mutableListOf<String>()
-        required.forEach { (name, expectedType) ->
-            val prop = properties[name]
-            if (prop == null) {
-                missing.add("缺少属性: $name")
-            } else {
-                val actualType = (prop as? JsonObject)?.get("type")?.toString()?.trim('"')
-                if (actualType != expectedType) {
-                    missing.add("属性 $name 类型错误: 需要 $expectedType，实际 $actualType")
-                }
+            if (url != null) {
+                add(buildParagraph("URL: $url"))
+            }
+            if (type.isNotBlank() || tags.isNotEmpty() || url != null) {
+                add(buildDivider())
             }
         }
-        return missing
+        put("children", buildJsonArray {
+            metaBlocks.forEach { add(it) }
+            children.forEach { add(it) }
+        })
     }
 
-    // 构建查询数据库的请求体
-    fun buildQueryRequest(
+    // 构建分页查询 block children 的参数（用于拉取父页面下的子页面）
+    fun buildBlockChildrenQuery(
         pageSize: Int = 100,
         startCursor: String? = null
     ): JsonObject = buildJsonObject {
@@ -189,12 +127,6 @@ object NotionRequestBuilder {
         if (startCursor != null) {
             put("start_cursor", startCursor)
         }
-        put("sorts", buildJsonArray {
-            add(buildJsonObject {
-                put("property", "Created")
-                put("direction", "descending")
-            })
-        })
     }
 
     // 构建归档请求体

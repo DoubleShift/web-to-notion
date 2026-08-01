@@ -13,7 +13,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -23,7 +22,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,8 +52,8 @@ class SettingsViewModel(
 ) : ViewModel() {
     val notionToken: StateFlow<String> =
         settings.notionToken.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
-    val databaseId: StateFlow<String> =
-        settings.databaseId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+    val parentPageId: StateFlow<String> =
+        settings.parentPageId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
     val groqKey: StateFlow<String> =
         settings.groqKey.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
     val groqEnabled: StateFlow<Boolean> =
@@ -64,7 +62,7 @@ class SettingsViewModel(
         settings.aiMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AiMode.CLEAN)
 
     fun setNotionToken(v: String) { viewModelScope.launch { settings.setNotionToken(v) } }
-    fun setDatabaseId(v: String) { viewModelScope.launch { settings.setDatabaseId(v) } }
+    fun setParentPageId(v: String) { viewModelScope.launch { settings.setParentPageId(v) } }
     fun setGroqKey(v: String) { viewModelScope.launch { settings.setGroqKey(v) } }
     fun setGroqEnabled(v: Boolean) { viewModelScope.launch { settings.setGroqEnabled(v) } }
 
@@ -72,13 +70,6 @@ class SettingsViewModel(
         viewModelScope.launch {
             val result = repository.testConnection()
             onResult(result.success, result.error)
-        }
-    }
-
-    fun createDatabase(parentPageId: String, onResult: (Boolean, String?, String?) -> Unit) {
-        viewModelScope.launch {
-            val result = repository.createNotionDatabase(parentPageId)
-            onResult(result.success, result.databaseId, result.error)
         }
     }
 }
@@ -96,11 +87,9 @@ fun SettingsScreen() {
     val snackbarHostState = remember { SnackbarHostState() }
 
     val notionToken by viewModel.notionToken.collectAsStateWithLifecycle()
-    val databaseId by viewModel.databaseId.collectAsStateWithLifecycle()
+    val parentPageId by viewModel.parentPageId.collectAsStateWithLifecycle()
     val groqKey by viewModel.groqKey.collectAsStateWithLifecycle()
     val groqEnabled by viewModel.groqEnabled.collectAsStateWithLifecycle()
-
-    var parentPageId by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("设置") }) },
@@ -127,19 +116,24 @@ fun SettingsScreen() {
                     visualTransformation = PasswordVisualTransformation()
                 )
                 OutlinedTextField(
-                    value = databaseId,
-                    onValueChange = viewModel::setDatabaseId,
-                    label = { Text("Database ID") },
+                    value = parentPageId,
+                    onValueChange = viewModel::setParentPageId,
+                    label = { Text("父页面 ID") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium,
                     singleLine = true
+                )
+                Text(
+                    text = "所有笔记会作为子页面创建在这个父页面下。把目标页面通过 ⋯ → 添加连接 分享给 integration 后填入 ID。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Button(
                     onClick = {
                         viewModel.testConnection { success, error ->
                             scope.launch {
                                 snackbarHostState.showSnackbar(
-                                    if (success) "连接成功，数据库 schema 正确"
+                                    if (success) "连接成功，父页面可访问"
                                     else "连接失败：$error"
                                 )
                             }
@@ -147,44 +141,6 @@ fun SettingsScreen() {
                     }
                 ) {
                     Text("测试连接")
-                }
-
-                HorizontalDivider()
-
-                Text(
-                    text = "数据库不存在或 schema 不匹配？在下面填入一个 Notion 页面 ID，让 App 自动创建正确结构的数据库。",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedTextField(
-                    value = parentPageId,
-                    onValueChange = { parentPageId = it },
-                    label = { Text("父页面 ID (page_id)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    singleLine = true
-                )
-                Button(
-                    onClick = {
-                        val pageId = parentPageId.trim()
-                        if (pageId.isBlank()) {
-                            scope.launch {
-                                snackbarHostState.showSnackbar("请先填写父页面 ID")
-                            }
-                            return@Button
-                        }
-                        viewModel.createDatabase(pageId) { success, newDbId, error ->
-                            scope.launch {
-                                if (success && newDbId != null) {
-                                    snackbarHostState.showSnackbar("数据库已创建：$newDbId")
-                                } else {
-                                    snackbarHostState.showSnackbar("创建失败：$error")
-                                }
-                            }
-                        }
-                    }
-                ) {
-                    Text("创建数据库")
                 }
             }
 
@@ -248,4 +204,3 @@ private fun SettingsCard(
         }
     }
 }
-

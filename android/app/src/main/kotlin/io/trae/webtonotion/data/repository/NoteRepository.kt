@@ -73,10 +73,10 @@ class NoteRepository(
     suspend fun syncNote(noteId: Long): Boolean {
         val note = dao.getById(noteId) ?: return false
         val token = settings.getNotionTokenSync()
-        val databaseId = settings.getDatabaseIdSync()
+        val parentPageId = settings.getParentPageIdSync()
 
-        if (token.isEmpty() || databaseId.isEmpty()) {
-            dao.updateStatus(noteId, NoteStatus.FAILED, "Notion Token 或 Database ID 未配置")
+        if (token.isEmpty() || parentPageId.isEmpty()) {
+            dao.updateStatus(noteId, NoteStatus.FAILED, "Notion Token 或父页面 ID 未配置")
             return false
         }
 
@@ -85,7 +85,7 @@ class NoteRepository(
         return try {
             val children = NotionRequestBuilder.buildNoteChildren(note.content)
             val request = NotionRequestBuilder.buildCreatePage(
-                databaseId = databaseId,
+                parentPageId = parentPageId,
                 title = note.title,
                 type = note.type,
                 url = note.url,
@@ -105,18 +105,16 @@ class NoteRepository(
         }
     }
 
-    // 从 Notion 拉取最新列表
+    // 从 Notion 拉取最新列表（父页面下的子页面）
     suspend fun syncFromNotion(): Boolean {
         val token = settings.getNotionTokenSync()
-        val databaseId = settings.getDatabaseIdSync()
-        if (token.isEmpty() || databaseId.isEmpty()) return false
+        val parentPageId = settings.getParentPageIdSync()
+        if (token.isEmpty() || parentPageId.isEmpty()) return false
 
         return try {
-            val request = NotionRequestBuilder.buildQueryRequest()
-            val response = ApiClient.notionApi.queryDatabase(
+            val response = ApiClient.notionApi.getBlockChildren(
                 ApiClient.bearer(token),
-                databaseId,
-                request
+                parentPageId
             )
             // 简单合并：更新已同步的笔记状态
             // 新笔记不自动插入本地（用户在 Notion 手动创建的）
@@ -126,25 +124,18 @@ class NoteRepository(
         }
     }
 
-    // 测试 Notion 连接，返回成功标志和错误详情
+    // 测试 Notion 连接，验证父页面可访问
     suspend fun testConnection(): TestResult {
         val token = settings.getNotionTokenSync()
-        val databaseId = settings.getDatabaseIdSync()
+        val parentPageId = settings.getParentPageIdSync()
         if (token.isEmpty()) return TestResult(false, "Notion Token 未填写")
-        if (databaseId.isEmpty()) return TestResult(false, "Database ID 未填写")
+        if (parentPageId.isEmpty()) return TestResult(false, "父页面 ID 未填写")
 
         return try {
-            val db = ApiClient.notionApi.getDatabase(
+            ApiClient.notionApi.getPage(
                 ApiClient.bearer(token),
-                databaseId
+                parentPageId
             )
-            val issues = NotionRequestBuilder.validateDatabaseSchema(db.properties)
-            if (issues.isNotEmpty()) {
-                return TestResult(
-                    false,
-                    "数据库 schema 不匹配：${issues.joinToString("；")}。请使用设置中的「创建数据库」功能。"
-                )
-            }
             TestResult(true, null)
         } catch (e: retrofit2.HttpException) {
             val body = e.response()?.errorBody()?.string()
@@ -157,29 +148,6 @@ class NoteRepository(
             TestResult(false, "${e.javaClass.simpleName}: ${e.message}")
         }
     }
-
-    // 在指定页面下创建 Web to Notion 数据库，返回新数据库 ID
-    suspend fun createNotionDatabase(parentPageId: String): CreateDbResult {
-        val token = settings.getNotionTokenSync()
-        if (token.isEmpty()) return CreateDbResult(false, null, "Notion Token 未填写")
-
-        return try {
-            val request = NotionRequestBuilder.buildCreateDatabase(parentPageId)
-            val response = ApiClient.notionApi.createDatabase(
-                ApiClient.bearer(token),
-                request
-            )
-            settings.setDatabaseId(response.id)
-            CreateDbResult(true, response.id, null)
-        } catch (e: retrofit2.HttpException) {
-            val body = e.response()?.errorBody()?.string()
-            CreateDbResult(false, null, "HTTP ${e.code()}: ${body ?: e.message()}")
-        } catch (e: Exception) {
-            CreateDbResult(false, null, "${e.javaClass.simpleName}: ${e.message}")
-        }
-    }
-
-    data class CreateDbResult(val success: Boolean, val databaseId: String?, val error: String?)
 
     // 重新同步失败的笔记
     suspend fun retrySync(noteId: Long) {

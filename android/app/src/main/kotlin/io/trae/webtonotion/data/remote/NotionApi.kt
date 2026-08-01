@@ -1,12 +1,9 @@
 package io.trae.webtonotion.data.remote
 
-import io.trae.webtonotion.data.remote.dto.CreateDatabaseResponse
 import io.trae.webtonotion.data.remote.dto.CreatePageResponse
-import io.trae.webtonotion.data.remote.dto.DatabaseResponse
 import io.trae.webtonotion.data.remote.dto.FileUploadCreateResponse
 import io.trae.webtonotion.data.remote.dto.FileUploadSendResponse
 import io.trae.webtonotion.data.remote.dto.GetBlocksResponse
-import io.trae.webtonotion.data.remote.dto.QueryDatabaseResponse
 import kotlinx.serialization.json.JsonObject
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -23,18 +20,11 @@ import retrofit2.http.Path
 interface NotionApi {
 
     @Headers("Notion-Version: 2022-06-28")
-    @GET("v1/databases/{database_id}")
-    suspend fun getDatabase(
+    @GET("v1/pages/{page_id}")
+    suspend fun getPage(
         @Header("Authorization") auth: String,
-        @Path("database_id") databaseId: String
-    ): DatabaseResponse
-
-    @Headers("Notion-Version: 2022-06-28")
-    @POST("v1/databases")
-    suspend fun createDatabase(
-        @Header("Authorization") auth: String,
-        @Body body: JsonObject
-    ): CreateDatabaseResponse
+        @Path("page_id") pageId: String
+    ): CreatePageResponse
 
     @Headers("Notion-Version: 2022-06-28")
     @POST("v1/pages")
@@ -42,14 +32,6 @@ interface NotionApi {
         @Header("Authorization") auth: String,
         @Body body: JsonObject
     ): CreatePageResponse
-
-    @Headers("Notion-Version: 2022-06-28")
-    @POST("v1/databases/{database_id}/query")
-    suspend fun queryDatabase(
-        @Header("Authorization") auth: String,
-        @Path("database_id") databaseId: String,
-        @Body body: JsonObject
-    ): QueryDatabaseResponse
 
     @Headers("Notion-Version: 2022-06-28")
     @GET("v1/blocks/{block_id}/children")

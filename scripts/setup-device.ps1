@@ -1,7 +1,7 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-    一键推送 web-to-notion APK 到手机并自动填入 Notion Token / Database ID。
+    一键推送 web-to-notion APK 到手机并自动填入 Notion Token / 父页面 ID。
 
 .DESCRIPTION
     1. 把 APK 推送到手机存储（默认 Download 目录）。
@@ -9,7 +9,7 @@
     3. 安装完成后按任意键继续，脚本自动启动 App。
     4. 发送广播把配置写入 App 的 DataStore。
 
-    敏感配置（Notion Token / Database ID）请写在同目录的 secrets.ps1 中，
+    敏感配置（Notion Token / 父页面 ID）请写在同目录的 secrets.ps1 中，
     该文件已被 .gitignore 排除，不会提交到 GitHub。
 
 .PARAMETER ApkPath
@@ -51,8 +51,8 @@ if (-not (Test-Path $secretsPath)) {
 }
 . $secretsPath
 
-if (-not $Global:NotionToken -or -not $Global:DatabaseId) {
-    Write-Error "secrets.ps1 中未设置 `$Global:NotionToken 或 `$Global:DatabaseId。"
+if (-not $Global:NotionToken -or -not $Global:ParentPageId) {
+    Write-Error "secrets.ps1 中未设置 `$Global:NotionToken 或 `$Global:ParentPageId。"
     exit 1
 }
 
@@ -166,8 +166,8 @@ Write-Ok "已启动"
 
 # 发送配置广播
 Write-Step "[4/4] 写入 Notion 配置..."
-$broadcastArgs = "shell am broadcast -a io.trae.webtonotion.SET_CONFIG -n $Receiver --es notion_token `"$Global:NotionToken`" --es database_id `"$Global:DatabaseId`""
+$broadcastArgs = "shell am broadcast -a io.trae.webtonotion.SET_CONFIG -n $Receiver --es notion_token `"$Global:NotionToken`" --es parent_page_id `"$Global:ParentPageId`""
 Invoke-Adb $broadcastArgs | Out-Null
 Write-Ok "配置已发送"
 
-Write-Host "`n✅ 完成。打开 App → 设置，即可看到 Token 和 Database ID 已填入。" -ForegroundColor Cyan
+Write-Host "`n✅ 完成。打开 App → 设置，即可看到 Token 和父页面 ID 已填入。" -ForegroundColor Cyan

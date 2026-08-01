@@ -70,8 +70,8 @@ if (-not (Test-Path $secretsPath)) {
 }
 . $secretsPath
 
-if (-not $Global:NotionToken -or -not $Global:DatabaseId) {
-    Write-Error "secrets.ps1 中未设置 `$Global:NotionToken 或 `$Global:DatabaseId。"
+if (-not $Global:NotionToken -or -not $Global:ParentPageId) {
+    Write-Error "secrets.ps1 中未设置 `$Global:NotionToken 或 `$Global:ParentPageId。"
     exit 1
 }
 
@@ -195,7 +195,7 @@ else {
 Write-Step "[5/7] 启动 App 并写入配置..."
 Invoke-Adb "shell am start -n $MainActivity" | Out-Null
 Start-Sleep -Seconds 2
-$broadcastArgs = "shell am broadcast -a io.trae.webtonotion.SET_CONFIG -n $Receiver --es notion_token `"$Global:NotionToken`" --es database_id `"$Global:DatabaseId`""
+$broadcastArgs = "shell am broadcast -a io.trae.webtonotion.SET_CONFIG -n $Receiver --es notion_token `"$Global:NotionToken`" --es parent_page_id `"$Global:ParentPageId`""
 Invoke-Adb $broadcastArgs | Out-Null
 Write-Ok "配置已发送"
 
