@@ -10,6 +10,10 @@ import io.trae.webtonotion.data.prefs.SettingsStore
 import io.trae.webtonotion.data.remote.ApiClient
 import io.trae.webtonotion.data.remote.NotionRequestBuilder
 import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class NoteRepository(
     private val dao: NoteDao,
@@ -105,22 +109,143 @@ class NoteRepository(
         }
     }
 
-    // 从 Notion 拉取最新列表（父页面下的子页面）
-    suspend fun syncFromNotion(): Boolean {
+    // 从 Notion 拉取父页面下的子页面到本地
+    suspend fun syncFromNotion(): Pair<Int, List<String>> {
         val token = settings.getNotionTokenSync()
         val parentPageId = settings.getParentPageIdSync()
-        if (token.isEmpty() || parentPageId.isEmpty()) return false
+        if (token.isEmpty()) return Pair(0, listOf("Notion Token 未填写"))
+        if (parentPageId.isEmpty()) return Pair(0, listOf("父页面 ID 未填写"))
 
+        val errors = mutableListOf<String>()
+        var syncedCount = 0
+        var cursor: String? = null
+
+        do {
+            val queryBody = NotionRequestBuilder.buildBlockChildrenQuery(100, cursor)
+            val response = try {
+                ApiClient.notionApi.queryBlockChildren(
+                    ApiClient.bearer(token),
+                    parentPageId,
+                    queryBody
+                )
+            } catch (e: Exception) {
+                errors.add("查询子页面失败: ${e.message}")
+                break
+            }
+
+            for (block in response.results) {
+                try {
+                    val type = block["type"]?.jsonPrimitive?.content ?: continue
+                    if (type != "child_page") continue
+
+                    val blockId = block["id"]?.jsonPrimitive?.content ?: continue
+                    val childPage = block["child_page"]?.jsonObject ?: continue
+                    val rawTitle = childPage["title"]?.jsonPrimitive?.content ?: "无标题"
+
+                    // 获取 page 详情获取更完整信息
+                    val page = try {
+                        ApiClient.notionApi.getPage(ApiClient.bearer(token), blockId)
+                    } catch (e: Exception) {
+                        errors.add("获取页面 $blockId 失败: ${e.message}")
+                        continue
+                    }
+
+                    val title = page.title ?: rawTitle
+                    val content = parsePageBlocks(token, page.id)
+
+                    // 查找是否已存在
+                    val existing = dao.getByNotionPageId(page.id)
+                    if (existing != null) {
+                        if (existing.title == title && existing.content == content) {
+                            continue
+                        }
+                        dao.update(existing.copy(
+                            title = title,
+                            content = content,
+                            status = NoteStatus.SUCCESS,
+                            notionPageId = page.id,
+                            updatedAt = System.currentTimeMillis()
+                        ))
+                    } else {
+                        val note = NoteEntity(
+                            notionPageId = page.id,
+                            type = NoteType.NOTE,
+                            title = title,
+                            content = content,
+                            status = NoteStatus.SUCCESS,
+                            createdAt = System.currentTimeMillis(),
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        dao.insertOrReplace(note)
+                    }
+                    syncedCount++
+                } catch (e: Exception) {
+                    errors.add("处理 block 失败: ${e.message}")
+                }
+            }
+
+            cursor = response.next_cursor
+        } while (cursor != null && response.has_more)
+
+        return Pair(syncedCount, errors)
+    }
+
+    /**
+     * 从页面的 children blocks 中提取 Markdown 文本
+     */
+    private suspend fun parsePageBlocks(token: String, pageId: String): String {
+        val sb = StringBuilder()
+        var cursor: String? = null
+
+        do {
+            val queryBody = NotionRequestBuilder.buildBlockChildrenQuery(100, cursor)
+            val resp = try {
+                ApiClient.notionApi.queryBlockChildren(ApiClient.bearer(token), pageId, queryBody)
+            } catch (e: Exception) {
+                break
+            }
+
+            for (block in resp.results) {
+                val type = block["type"]?.jsonPrimitive?.content ?: continue
+                val blockContent = getBlockRichText(block, type)
+                if (blockContent.isNotBlank()) {
+                    val prefix = when (type) {
+                        "heading_1" -> "# "
+                        "heading_2" -> "## "
+                        "heading_3" -> "### "
+                        "callout" -> "> "
+                        "bulleted_list_item", "numbered_list_item", "to_do", "toggle" -> "- "
+                        else -> ""
+                    }
+                    val suffix = if (type in listOf("paragraph", "heading_1", "heading_2", "heading_3", "callout")) "\n\n" else "\n"
+                    sb.append(prefix).append(blockContent).append(suffix)
+                }
+                if (type == "divider") sb.append("---\n\n")
+            }
+            cursor = resp.next_cursor
+        } while (cursor != null && resp.has_more)
+
+        return sb.toString().trim()
+    }
+
+    /**
+     * 从 JsonObject block 中提取 rich_text 内容
+     */
+    private fun getBlockRichText(block: JsonObject, type: String): String {
         return try {
-            val response = ApiClient.notionApi.getBlockChildren(
-                ApiClient.bearer(token),
-                parentPageId
-            )
-            // 简单合并：更新已同步的笔记状态
-            // 新笔记不自动插入本地（用户在 Notion 手动创建的）
-            true
+            val typeBlock = block[type]?.jsonObject ?: return ""
+            val richTextArray = typeBlock["rich_text"]?.jsonArray ?: return ""
+            val sb = StringBuilder()
+            for (item in richTextArray) {
+                val obj = item.jsonObject
+                val plainText = obj["plain_text"]?.jsonPrimitive?.content ?: ""
+                if (plainText.isNotBlank()) {
+                    sb.append(plainText)
+                }
+            }
+            sb.toString()
         } catch (e: Exception) {
-            false
+            ""
         }
     }
 

@@ -22,7 +22,9 @@ fun AppNav() {
             NoteListScreen(
                 onNoteClick = { id -> navController.navigate("edit/$id") },
                 onNewNote = { navController.navigate("edit/-1") },
-                onNavigateToSettings = { navController.navigate("settings") }
+                onNavigateToSettings = { navController.navigate("settings") },
+                onNavigateToGroups = { /* TODO: 分组页面 */ },
+                onNavigateToTrash = { /* TODO: 回收站页面 */ }
             )
         }
         composable(

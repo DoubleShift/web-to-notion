@@ -44,4 +44,10 @@ interface NoteDao {
 
     @Query("SELECT COUNT(*) FROM notes WHERE status = :status")
     suspend fun countByStatus(status: String): Int
+
+    @Query("SELECT * FROM notes WHERE notionPageId = :notionPageId LIMIT 1")
+    suspend fun getByNotionPageId(notionPageId: String): NoteEntity?
+
+    @Insert
+    suspend fun insertOrReplace(note: NoteEntity): Long
 }

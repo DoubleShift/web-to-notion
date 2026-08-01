@@ -41,6 +41,14 @@ interface NotionApi {
     ): GetBlocksResponse
 
     @Headers("Notion-Version: 2022-06-28")
+    @POST("v1/blocks/{block_id}/children")
+    suspend fun queryBlockChildren(
+        @Header("Authorization") auth: String,
+        @Path("block_id") blockId: String,
+        @Body body: JsonObject
+    ): GetBlocksResponse
+
+    @Headers("Notion-Version: 2022-06-28")
     @PATCH("v1/pages/{page_id}")
     suspend fun updatePage(
         @Header("Authorization") auth: String,

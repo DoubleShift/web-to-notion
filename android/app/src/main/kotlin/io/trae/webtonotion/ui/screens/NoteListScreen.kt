@@ -3,6 +3,7 @@ package io.trae.webtonotion.ui.screens
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -50,6 +52,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -103,6 +107,13 @@ class NoteListViewModel(private val repository: NoteRepository) : ViewModel() {
             SaveNoteWorker.enqueue(context, id)
         }
     }
+
+    fun syncFromNotion(onResult: (synced: Int, errors: List<String>) -> Unit) {
+        viewModelScope.launch {
+            val (count, errors) = repository.syncFromNotion()
+            onResult(count, errors)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -110,7 +121,9 @@ class NoteListViewModel(private val repository: NoteRepository) : ViewModel() {
 fun NoteListScreen(
     onNoteClick: (Long) -> Unit,
     onNewNote: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    onNavigateToGroups: () -> Unit,
+    onNavigateToTrash: () -> Unit
 ) {
     val context = LocalContext.current
     val repository = remember { NoteRepository.getInstance(context) }
@@ -119,6 +132,8 @@ fun NoteListScreen(
     )
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     var drawerOpen by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val pinned = notes.filter { it.isPinned }
     val recent = notes.filter { !it.isPinned }
@@ -156,6 +171,7 @@ fun NoteListScreen(
                     )
                 )
             },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = onNewNote,
@@ -251,12 +267,30 @@ fun NoteListScreen(
                 MemoDrawerSheet(
                     noteCount = notes.size,
                     onMyNotes = { drawerOpen = false },
-                    onAllNotes = { drawerOpen = false },
+                    onSync = {
+                        drawerOpen = false
+                        viewModel.syncFromNotion { count, errors ->
+                            scope.launch {
+                                if (errors.isEmpty()) {
+                                    snackbarHostState.showSnackbar("同步成功：$count 个便签")
+                                } else {
+                                    snackbarHostState.showSnackbar("同步完成：$count 个，错误：${errors.size} 个")
+                                }
+                            }
+                        }
+                    },
                     onSettings = {
                         drawerOpen = false
                         onNavigateToSettings()
                     },
-                    onTrash = { drawerOpen = false }
+                    onGroups = {
+                        drawerOpen = false
+                        onNavigateToGroups()
+                    },
+                    onTrash = {
+                        drawerOpen = false
+                        onNavigateToTrash()
+                    }
                 )
             }
         }
@@ -267,8 +301,9 @@ fun NoteListScreen(
 private fun MemoDrawerSheet(
     noteCount: Int,
     onMyNotes: () -> Unit,
-    onAllNotes: () -> Unit,
+    onSync: () -> Unit,
     onSettings: () -> Unit,
+    onGroups: () -> Unit,
     onTrash: () -> Unit
 ) {
     val context = LocalContext.current
@@ -333,7 +368,13 @@ private fun MemoDrawerSheet(
             icon = { Icon(Icons.Outlined.Label, contentDescription = null) },
             label = { DrawerItemLabel("全部便签", noteCount) },
             selected = false,
-            onClick = onAllNotes
+            onClick = onGroups
+        )
+        DrawerMenuItem(
+            icon = { Icon(Icons.Outlined.Sync, contentDescription = null) },
+            label = { Text("同步到 Notion", fontSize = 15.sp, color = Color.Black) },
+            selected = false,
+            onClick = onSync
         )
 
         // 分组（可展开）
@@ -393,7 +434,7 @@ private fun MemoDrawerSheet(
             label = { Text("设置", fontSize = 15.sp, color = Color.Black) },
             selected = false,
             onClick = {
-                android.widget.Toast.makeText(context, "打开设置", android.widget.Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "打开设置", Toast.LENGTH_SHORT).show()
                 onSettings()
             }
         )
